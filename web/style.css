@@ -1,0 +1,106 @@
+:root {
+  --bg: #0f1115;
+  --card: #181b22;
+  --border: #262b36;
+  --text: #e6e9ef;
+  --muted: #8b93a3;
+  --up: #34d399;
+  --down: #f87171;
+  --pending: #fbbf24;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f5f6f8; --card: #fff; --border: #e3e6eb;
+    --text: #1a1d24; --muted: #6b7280;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 2rem 1rem 3rem;
+  max-width: 760px;
+  margin-inline: auto;
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+h1 { font-size: 1.4rem; margin: 0; }
+.overall {
+  font-size: .85rem;
+  font-weight: 600;
+  padding: .3rem .7rem;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+.overall.up { color: var(--up); }
+.overall.down { color: var(--down); }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  margin-bottom: .8rem;
+}
+.card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.name { font-weight: 600; }
+.target { color: var(--muted); font-size: .8rem; word-break: break-all; }
+.status {
+  font-size: .8rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+}
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.up    .dot, .dot.up    { background: var(--up); }
+.down  .dot, .dot.down  { background: var(--down); }
+.pending .dot, .dot.pending { background: var(--pending); }
+.up    { color: var(--up); }
+.down  { color: var(--down); }
+.pending { color: var(--pending); }
+
+.bars {
+  display: flex;
+  gap: 3px;
+  margin: .8rem 0 .4rem;
+  height: 30px;
+  align-items: flex-end;
+}
+.bar {
+  flex: 1;
+  min-width: 2px;
+  max-width: 8px;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--border);
+}
+.bar.up { background: var(--up); }
+.bar.down { background: var(--down); }
+
+.meta {
+  display: flex;
+  gap: 1.2rem;
+  color: var(--muted);
+  font-size: .8rem;
+}
+footer {
+  margin-top: 2rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: .8rem;
+}
+.sep { margin: 0 .5rem; }

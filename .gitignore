@@ -1,0 +1,6 @@
+/downtime
+config.json
+
+# nix / direnv
+/result
+.direnv/
