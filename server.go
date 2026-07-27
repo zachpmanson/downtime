@@ -11,6 +11,19 @@ import (
 //go:embed all:web
 var webFS embed.FS
 
+type versionInfo struct {
+	Commit    string `json:"commit"`
+	Repo      string `json:"repo"`
+	BuiltUnix int64  `json:"built_unix"`
+}
+
+// statusResponse embeds the store Snapshot (flattening its generated/monitors
+// fields) and adds build metadata for the page footer.
+type statusResponse struct {
+	Snapshot
+	Version versionInfo `json:"version"`
+}
+
 func newServer(store *Store) http.Handler {
 	mux := http.NewServeMux()
 
@@ -19,7 +32,14 @@ func newServer(store *Store) http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
-		_ = enc.Encode(store.Snapshot(time.Now()))
+		_ = enc.Encode(statusResponse{
+			Snapshot: store.Snapshot(time.Now()),
+			Version: versionInfo{
+				Commit:    commit,
+				Repo:      repoURL,
+				BuiltUnix: buildUnixInt(),
+			},
+		})
 	})
 
 	sub, err := fs.Sub(webFS, "web")

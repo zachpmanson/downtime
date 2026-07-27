@@ -23,6 +23,28 @@ function bars(history) {
     .join("");
 }
 
+function renderVersion(v) {
+  const el = document.getElementById("version");
+  if (!el || !v) return;
+  const repo = v.repo || "https://github.com/zachpmanson/downtime";
+  const name = `powered by <a href="${repo}" target="_blank" rel="noopener"><strong>downtime</strong></a>`;
+
+  let commit = "";
+  if (v.commit && v.commit !== "dev") {
+    commit = ` <a href="${repo}/commit/${v.commit}" target="_blank" rel="noopener" class="commit">${v.commit}</a>`;
+  }
+
+  let deployed = "";
+  if (v.built_unix) {
+    const d = new Date(v.built_unix * 1000);
+    deployed = ` · deployed ${d.toLocaleDateString(undefined, {
+      day: "numeric", month: "short", year: "numeric",
+    })}`;
+  }
+
+  el.innerHTML = name + commit + deployed;
+}
+
 function card(m) {
   const label = m.status === "up" ? "Operational" : m.status === "down" ? "Down" : "Pending";
   return `
@@ -61,6 +83,7 @@ async function refresh() {
       overall.className = "overall up";
     }
     document.getElementById("updated").textContent = "updated " + timeAgo(data.generated);
+    renderVersion(data.version);
   } catch (e) {
     document.getElementById("updated").textContent = "connection error — retrying";
   }

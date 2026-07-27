@@ -26,6 +26,11 @@ let
   cfg = config.services.downtime;
   format = pkgs.formats.json { };
 
+  # Build metadata for the footer, sourced from the flake input's git info.
+  sourceInfo = self.sourceInfo or { };
+  rev = sourceInfo.shortRev or "dev";
+  buildTime = toString (sourceInfo.lastModified or 0);
+
   # Prefer an out-of-store file (may contain secrets) when given; otherwise
   # render config.json from `settings`. Secrets should use "env:VAR" and come
   # from environmentFile, so the rendered file is safe to keep in the store.
@@ -44,7 +49,9 @@ in
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
+      default = self.packages.${pkgs.stdenv.hostPlatform.system}.default.override {
+        inherit rev buildTime;
+      };
       defaultText = lib.literalExpression "downtime.packages.\${system}.default";
       description = "The downtime package to run.";
     };
