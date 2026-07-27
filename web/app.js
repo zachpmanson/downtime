@@ -31,7 +31,7 @@ function renderVersion(v) {
 
   let commit = "";
   if (v.commit && v.commit !== "dev") {
-    commit = ` <a href="${repo}/commit/${v.commit}" target="_blank" rel="noopener" class="commit">${v.commit}</a>`;
+    commit = ` · <a href="${repo}/commit/${v.commit}" target="_blank" rel="noopener" class="commit">${v.commit}</a>`;
   }
 
   let deployed = "";
