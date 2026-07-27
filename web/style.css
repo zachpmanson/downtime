@@ -22,8 +22,15 @@ body {
   background: var(--bg);
   color: var(--text);
   padding: 2rem 1rem 3rem;
-  max-width: 760px;
+  max-width: 1200px;
   margin-inline: auto;
+}
+/* Monitors flow in a wrapping row of tiles so many fit on screen at once. */
+#monitors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .8rem;
+  align-items: stretch;
 }
 header {
   display: flex;
@@ -48,7 +55,9 @@ h1 { font-size: 1.4rem; margin: 0; }
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1rem 1.1rem;
-  margin-bottom: .8rem;
+  /* Grow to fill the row but wrap once tiles get below ~300px wide. */
+  flex: 1 1 300px;
+  min-width: 0;
 }
 .card-top {
   display: flex;
