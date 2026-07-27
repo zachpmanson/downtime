@@ -7,6 +7,7 @@
   --up: #34d399;
   --down: #f87171;
   --pending: #fbbf24;
+  --disabled: #6b7280;
 }
 @media (prefers-color-scheme: light) {
   :root {
@@ -101,9 +102,15 @@ h1 { font-size: 1.4rem; margin: 0; }
 .up    .dot, .dot.up    { background: var(--up); }
 .down  .dot, .dot.down  { background: var(--down); }
 .pending .dot, .dot.pending { background: var(--pending); }
+.disabled .dot, .dot.disabled { background: var(--disabled); }
 .up    { color: var(--up); }
 .down  { color: var(--down); }
 .pending { color: var(--pending); }
+.status.disabled { color: var(--disabled); }
+
+/* Decommissioned monitors: muted so they read as intentionally off, not broken. */
+.card.disabled { opacity: .55; }
+.card.disabled .name { font-weight: 600; }
 
 .bars {
   display: flex;

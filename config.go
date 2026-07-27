@@ -42,6 +42,9 @@ type MonitorConfig struct {
 	Timeout      Duration `json:"timeout"`
 	ExpectStatus []int    `json:"expect_status"`
 	Keyword      string   `json:"keyword"`
+	// Disabled marks a temporarily-decommissioned service: it's shown greyed
+	// out on the status page but never probed and never alerts.
+	Disabled bool `json:"disabled"`
 }
 
 // Endpoint returns the human-facing target string for display / API.
@@ -114,6 +117,12 @@ func (c *Config) validate() error {
 			return fmt.Errorf("duplicate monitor name %q", m.Name)
 		}
 		seen[m.Name] = true
+
+		// A disabled monitor is never probed, so its probe fields needn't be
+		// valid (a decommissioned service may have had its url/target removed).
+		if m.Disabled {
+			continue
+		}
 
 		if m.Interval.D() <= 0 {
 			m.Interval = Duration(30 * time.Second)

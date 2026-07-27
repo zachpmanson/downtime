@@ -55,8 +55,32 @@ function renderVersion(v) {
   el.innerHTML = parts.join(sep);
 }
 
+const STATUS_LABELS = {
+  up: "Operational",
+  down: "Down",
+  disabled: "Disabled",
+  pending: "Pending",
+};
+
 function card(m) {
-  const label = m.status === "up" ? "Operational" : m.status === "down" ? "Down" : "Pending";
+  const label = STATUS_LABELS[m.status] || "Pending";
+
+  // A disabled monitor is decommissioned: skip the bars/uptime/latency stats
+  // (there's no probe data) and just note it's not being checked.
+  if (m.status === "disabled") {
+    return `
+      <div class="card disabled">
+        <div class="card-top">
+          <div>
+            <div class="name">${m.name}</div>
+            <div class="target">${m.target}</div>
+          </div>
+          <div class="status disabled"><span class="dot"></span>${label}</div>
+        </div>
+        <div class="meta"><span>not being checked</span></div>
+      </div>`;
+  }
+
   return `
     <div class="card">
       <div class="card-top">
@@ -93,8 +117,8 @@ function sortMonitors(monitors, mode) {
   if (mode === "alpha") {
     arr.sort((a, b) => a.name.localeCompare(b.name));
   } else if (mode === "worst") {
-    // down (worst) → pending → up, then least-reliable first.
-    const rank = { down: 0, pending: 1, up: 2 };
+    // down (worst) → pending → up → disabled (not checked), then least-reliable first.
+    const rank = { down: 0, pending: 1, up: 2, disabled: 3 };
     arr.sort(
       (a, b) =>
         (rank[a.status] ?? 3) - (rank[b.status] ?? 3) ||

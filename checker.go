@@ -14,6 +14,9 @@ import (
 func runMonitors(ctx context.Context, cfgs []MonitorConfig, store *Store, n notify.Notifier) {
 	var wg sync.WaitGroup
 	for _, m := range cfgs {
+		if m.Disabled {
+			continue // decommissioned: shown greyed out, never probed
+		}
 		wg.Add(1)
 		go func(m MonitorConfig) {
 			defer wg.Done()

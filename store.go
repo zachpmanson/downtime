@@ -40,7 +40,11 @@ func NewStore(cfgs []MonitorConfig, historySize, threshold int) *Store {
 		threshold:   threshold,
 	}
 	for _, c := range cfgs {
-		s.monitors[c.Name] = &monitorState{cfg: c, status: "pending"}
+		status := "pending"
+		if c.Disabled {
+			status = "disabled"
+		}
+		s.monitors[c.Name] = &monitorState{cfg: c, status: status}
 		s.order = append(s.order, c.Name)
 	}
 	return s

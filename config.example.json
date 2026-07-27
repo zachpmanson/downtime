@@ -24,6 +24,12 @@
       "target": "db.internal:5432",
       "interval": "60s",
       "timeout": "5s"
+    },
+    {
+      "name": "Old Game Server",
+      "type": "tcp",
+      "target": "games.internal:25565",
+      "disabled": true
     }
   ],
   "xmpp": {

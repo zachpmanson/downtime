@@ -77,6 +77,9 @@ Then open http://localhost:8080.
 | `http` | `url`    | GET; status in `expect_status` (default any 2xx/3xx); optional `keyword` must appear in the body |
 | `tcp`  | `target` | `host:port` accepts a connection |
 
+Add `"disabled": true` to any monitor to mark it as temporarily decommissioned:
+it's shown greyed out on the status page but never probed and never alerts.
+
 ## Config
 
 ```json
