@@ -48,10 +48,12 @@ body {
   border-color: var(--muted);
 }
 
-/* Monitors flow in a wrapping row of tiles so many fit on screen at once. */
+/* Monitors tile in a grid so many fit at once. auto-fill (not auto-fit) keeps
+   every tile the same width — a partial last row leaves empty cells rather
+   than stretching its items wider than the rest. */
 #monitors {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: .8rem;
   align-items: stretch;
 }
@@ -78,9 +80,7 @@ h1 { font-size: 1.4rem; margin: 0; }
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1rem 1.1rem;
-  /* Grow to fill the row but wrap once tiles get below ~300px wide. */
-  flex: 1 1 300px;
-  min-width: 0;
+  min-width: 0; /* let long targets truncate instead of widening the cell */
 }
 .card-top {
   display: flex;
