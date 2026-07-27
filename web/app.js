@@ -1,12 +1,16 @@
 const POLL_MS = 10000;
 
-function timeAgo(iso) {
-  if (!iso) return "never";
-  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+function timeAgoMs(ms) {
+  const s = Math.max(0, (Date.now() - ms) / 1000);
   if (s < 60) return `${Math.round(s)}s ago`;
   if (s < 3600) return `${Math.round(s / 60)}m ago`;
   if (s < 86400) return `${Math.round(s / 3600)}h ago`;
   return `${Math.round(s / 86400)}d ago`;
+}
+
+function timeAgo(iso) {
+  if (!iso) return "never";
+  return timeAgoMs(new Date(iso).getTime());
 }
 
 function bars(history) {
@@ -116,6 +120,21 @@ function renderControls() {
 }
 
 let lastData = null;
+let lastFetchMs = null; // client time of the last successful poll
+let lastError = false;
+
+// Update just the "updated Xs ago" stamp. Driven by a 1s ticker so it counts
+// up between polls and keeps growing (signalling staleness) if polling stalls.
+function updateStamp() {
+  const el = document.getElementById("updated");
+  if (!el) return;
+  if (lastFetchMs == null) {
+    el.textContent = "connecting…";
+    return;
+  }
+  const ago = timeAgoMs(lastFetchMs);
+  el.textContent = lastError ? `stale — last updated ${ago}` : `updated ${ago}`;
+}
 
 function render(data) {
   if (!data) return;
@@ -132,7 +151,7 @@ function render(data) {
     overall.textContent = "All systems operational";
     overall.className = "overall up";
   }
-  document.getElementById("updated").textContent = "updated " + timeAgo(data.generated);
+  updateStamp();
   renderVersion(data.version);
   renderControls();
 }
@@ -141,9 +160,12 @@ async function refresh() {
   try {
     const res = await fetch("api/status", { cache: "no-store" });
     lastData = await res.json();
+    lastFetchMs = Date.now();
+    lastError = false;
     render(lastData);
   } catch (e) {
-    document.getElementById("updated").textContent = "connection error — retrying";
+    lastError = true;
+    updateStamp(); // keep showing the (now growing) last-updated time
   }
 }
 
@@ -161,3 +183,4 @@ window.addEventListener("popstate", () => render(lastData));
 renderControls();
 refresh();
 setInterval(refresh, POLL_MS);
+setInterval(updateStamp, 1000); // tick the "updated Xs ago" stamp every second
