@@ -27,22 +27,28 @@ function renderVersion(v) {
   const el = document.getElementById("version");
   if (!el || !v) return;
   const repo = v.repo || "https://github.com/zachpmanson/downtime";
-  const name = `powered by <a href="${repo}" target="_blank" rel="noopener"><strong>downtime</strong></a>`;
+  const sep = `<span class="sep">·</span>`;
 
-  let commit = "";
+  const parts = [
+    `powered by <a href="${repo}" target="_blank" rel="noopener"><strong>downtime</strong></a>`,
+  ];
   if (v.commit && v.commit !== "dev") {
-    commit = ` · <a href="${repo}/commit/${v.commit}" target="_blank" rel="noopener" class="commit">${v.commit}</a>`;
+    parts.push(
+      `<a href="${repo}/commit/${v.commit}" target="_blank" rel="noopener" class="commit">${v.commit}</a>`
+    );
   }
-
-  let deployed = "";
   if (v.built_unix) {
     const d = new Date(v.built_unix * 1000);
-    deployed = ` · deployed ${d.toLocaleDateString(undefined, {
-      day: "numeric", month: "short", year: "numeric",
-    })}`;
+    parts.push(
+      `deployed ${d.toLocaleDateString(undefined, {
+        day: "numeric", month: "short", year: "numeric",
+      })}`
+    );
   }
 
-  el.innerHTML = name + commit + deployed;
+  // Join with the same .sep separator the footer uses between "updated" and
+  // this block, so every dot is spaced identically.
+  el.innerHTML = parts.join(sep);
 }
 
 function card(m) {
