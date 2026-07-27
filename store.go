@@ -67,6 +67,9 @@ func (s *Store) Record(name string, r Result) *Transition {
 		ms.consecutiveFail = 0
 		// A single success clears a down state (fast recovery signal).
 		if ms.status != "up" {
+			// First check after startup only establishes a baseline — don't
+			// fire a "recovered" alert for every healthy service on restart.
+			baseline := ms.status == "pending"
 			var downtime time.Duration
 			if !ms.downSince.IsZero() {
 				downtime = r.Time.Sub(ms.downSince)
@@ -74,6 +77,9 @@ func (s *Store) Record(name string, r Result) *Transition {
 			ms.status = "up"
 			ms.since = r.Time
 			ms.downSince = time.Time{}
+			if baseline {
+				return nil
+			}
 			return &Transition{Monitor: name, Up: true, Downtime: downtime, Time: r.Time}
 		}
 		return nil
@@ -87,8 +93,14 @@ func (s *Store) Record(name string, r Result) *Transition {
 	// Only flip to "down" (and notify) once the threshold is crossed, and only
 	// on the transition itself — not on every subsequent failure.
 	if ms.status != "down" && ms.consecutiveFail >= s.threshold {
+		// If it was already down when we first looked (startup baseline),
+		// record it silently instead of alerting on restart.
+		baseline := ms.status == "pending"
 		ms.status = "down"
 		ms.since = r.Time
+		if baseline {
+			return nil
+		}
 		return &Transition{Monitor: name, Up: false, Err: r.Err, Time: r.Time}
 	}
 	return nil

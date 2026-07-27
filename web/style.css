@@ -25,6 +25,29 @@ body {
   max-width: 1200px;
   margin-inline: auto;
 }
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  color: var(--muted);
+}
+.controls a, .controls .active {
+  padding: .2rem .6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--muted);
+}
+.controls a:hover { color: var(--text); }
+.controls .active {
+  color: var(--text);
+  background: var(--card);
+  border-color: var(--muted);
+}
+
 /* Monitors flow in a wrapping row of tiles so many fit on screen at once. */
 #monitors {
   display: flex;

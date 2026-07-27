@@ -65,29 +65,93 @@ function card(m) {
     </div>`;
 }
 
+// --- Sorting (linkable via ?sort=) ---
+
+const SORTS = [
+  ["default", "Default"],
+  ["alpha", "A–Z"],
+  ["worst", "Worst first"],
+];
+
+function currentSort() {
+  const s = new URLSearchParams(location.search).get("sort");
+  return SORTS.some(([k]) => k === s) ? s : "default";
+}
+
+function sortMonitors(monitors, mode) {
+  const arr = monitors.slice();
+  if (mode === "alpha") {
+    arr.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (mode === "worst") {
+    // down (worst) → pending → up, then least-reliable first.
+    const rank = { down: 0, pending: 1, up: 2 };
+    arr.sort(
+      (a, b) =>
+        (rank[a.status] ?? 3) - (rank[b.status] ?? 3) ||
+        a.uptime_pct - b.uptime_pct ||
+        a.name.localeCompare(b.name)
+    );
+  }
+  return arr; // "default" keeps config order
+}
+
+function renderControls() {
+  const el = document.getElementById("controls");
+  if (!el) return;
+  const mode = currentSort();
+  el.innerHTML =
+    "sort: " +
+    SORTS.map(([k, label]) => {
+      const href = k === "default" ? "?" : `?sort=${k}`;
+      return k === mode
+        ? `<span class="active">${label}</span>`
+        : `<a href="${href}">${label}</a>`;
+    }).join("");
+}
+
+let lastData = null;
+
+function render(data) {
+  if (!data) return;
+  const mons = sortMonitors(data.monitors || [], currentSort());
+
+  document.getElementById("monitors").innerHTML = mons.map(card).join("");
+
+  const anyDown = mons.some((m) => m.status === "down");
+  const overall = document.getElementById("overall");
+  if (anyDown) {
+    overall.textContent = "Some systems down";
+    overall.className = "overall down";
+  } else {
+    overall.textContent = "All systems operational";
+    overall.className = "overall up";
+  }
+  document.getElementById("updated").textContent = "updated " + timeAgo(data.generated);
+  renderVersion(data.version);
+  renderControls();
+}
+
 async function refresh() {
   try {
     const res = await fetch("api/status", { cache: "no-store" });
-    const data = await res.json();
-    const mons = data.monitors || [];
-
-    document.getElementById("monitors").innerHTML = mons.map(card).join("");
-
-    const anyDown = mons.some((m) => m.status === "down");
-    const overall = document.getElementById("overall");
-    if (anyDown) {
-      overall.textContent = "Some systems down";
-      overall.className = "overall down";
-    } else {
-      overall.textContent = "All systems operational";
-      overall.className = "overall up";
-    }
-    document.getElementById("updated").textContent = "updated " + timeAgo(data.generated);
-    renderVersion(data.version);
+    lastData = await res.json();
+    render(lastData);
   } catch (e) {
     document.getElementById("updated").textContent = "connection error — retrying";
   }
 }
 
+// Re-sort instantly (no refetch) when a sort link is clicked, and keep the URL
+// in sync so the view is shareable.
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("#controls a");
+  if (!a) return;
+  e.preventDefault();
+  history.pushState(null, "", a.getAttribute("href"));
+  render(lastData);
+});
+window.addEventListener("popstate", () => render(lastData));
+
+renderControls();
 refresh();
 setInterval(refresh, POLL_MS);
