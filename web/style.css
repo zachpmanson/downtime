@@ -8,6 +8,7 @@
   --down: #f87171;
   --pending: #fbbf24;
   --disabled: #6b7280;
+  --unknown: #a78bfa;
 }
 @media (prefers-color-scheme: light) {
   :root {
@@ -75,6 +76,7 @@ h1 { font-size: 1.4rem; margin: 0; }
 }
 .overall.up { color: var(--up); }
 .overall.down { color: var(--down); }
+.overall.unknown { color: var(--unknown); }
 
 .card {
   background: var(--card);
@@ -102,6 +104,8 @@ h1 { font-size: 1.4rem; margin: 0; }
 .up    .dot, .dot.up    { background: var(--up); }
 .down  .dot, .dot.down  { background: var(--down); }
 .pending .dot, .dot.pending { background: var(--pending); }
+.unknown .dot, .dot.unknown { background: var(--unknown); }
+.card.unknown .status { color: var(--unknown); }
 .disabled .dot, .dot.disabled { background: var(--disabled); }
 .up    { color: var(--up); }
 .down  { color: var(--down); }

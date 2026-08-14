@@ -70,6 +70,25 @@ Then open http://localhost:8080.
   success flips it back to **up** and sends a recovery alert with the total
   downtime.
 
+## Unknown state & crash gaps
+
+If downtime itself crashes or is restarted, it has no memory of the checks it
+ran right before dying — so it cannot honestly say whether a service was up or
+down during that window. To cover that: each check's timestamp is persisted to
+a small JSON file (`state_file`, default `downtime-state.json`), per monitor,
+while the heavier result history stays in memory only.
+
+On boot, downtime compares each monitor's persisted last-check time against
+`gapFactor × interval` (`gapFactor = 2`) in the past:
+
+- if it's within that window, the monitor starts as ordinary **pending**;
+- if it's older — i.e. the checks that should have run in between never did —
+  the monitor starts as **unknown**, and the status page shows the crossed
+  window as a gap (“no data since …”) instead of guessing up/down.
+
+Once probes resume, `unknown` re-baselines silently (no spurious recovery
+alert) on the first healthy check and reverts to normal tracking.
+
 ## Check types
 
 | type   | field    | checks |
@@ -86,6 +105,7 @@ it's shown greyed out on the status page but never probed and never alerts.
 {
   "listen": ":8080",
   "history_size": 100,
+  "state_file": "downtime-state.json",
   "monitors": [
     { "name": "Website", "type": "http", "url": "https://example.com",
       "interval": "30s", "timeout": "5s", "expect_status": [200] },
@@ -104,6 +124,8 @@ it's shown greyed out on the status page but never probed and never alerts.
 ```
 
 - Durations are Go duration strings (`"30s"`, `"2m"`).
+- `state_file` persists each monitor's last-check timestamp so a restart can
+  reconstruct a coverage gap as **unknown** (see above); omit to disable.
 - `password` supports `env:VAR` indirection so the secret stays out of the file.
 - `server` is an optional `host:port` XMPP override; if empty it's derived from
   the JID domain on port 5222 (StartTLS).

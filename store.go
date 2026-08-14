@@ -17,13 +17,18 @@ type Transition struct {
 // monitorState is the mutable per-monitor record held in memory.
 type monitorState struct {
 	cfg             MonitorConfig
-	status          string // "up", "down", "pending"
+	status          string // "up", "down", "pending", "unknown", "disabled"
 	history         []Result
 	consecutiveFail int
 	lastCheck       time.Time
 	since           time.Time // when the current status began
 	downSince       time.Time // set while down, used to compute downtime
 }
+
+// gapFactor is how many check intervals may pass before a monitor is judged
+// to have an unaccounted gap (i.e. downtime itself was likely down). Tolerates
+// small scheduling jitter while still catching a real outage window.
+const gapFactor = 2
 
 type Store struct {
 	mu          sync.RWMutex
@@ -33,7 +38,11 @@ type Store struct {
 	threshold   int
 }
 
-func NewStore(cfgs []MonitorConfig, historySize, threshold int) *Store {
+// NewStore builds the in-memory store. lastChecks holds the persisted
+// pre-restart last-check timestamps (nil/empty if none); any monitor whose
+// last check is older than gapFactor check-intervals is seeded as "unknown"
+// so the crossed window is shown as an honest gap rather than a guessed state.
+func NewStore(cfgs []MonitorConfig, historySize, threshold int, lastChecks map[string]time.Time, now time.Time) *Store {
 	s := &Store{
 		monitors:    make(map[string]*monitorState),
 		historySize: historySize,
@@ -44,7 +53,20 @@ func NewStore(cfgs []MonitorConfig, historySize, threshold int) *Store {
 		if c.Disabled {
 			status = "disabled"
 		}
-		s.monitors[c.Name] = &monitorState{cfg: c, status: status}
+		ms := &monitorState{cfg: c, status: status}
+		if !c.Disabled {
+			// Seed the last check from the persisted heartbeat so a coverage
+			// gap can be reconstructed across the restart.
+			if lc, ok := lastChecks[c.Name]; ok && !lc.IsZero() {
+				ms.lastCheck = lc
+				gap := now.Sub(lc)
+				if gap > gapFactor*c.Interval.D() {
+					ms.status = "unknown"
+					ms.since = lc
+				}
+			}
+		}
+		s.monitors[c.Name] = ms
 		s.order = append(s.order, c.Name)
 	}
 	return s
@@ -71,9 +93,10 @@ func (s *Store) Record(name string, r Result) *Transition {
 		ms.consecutiveFail = 0
 		// A single success clears a down state (fast recovery signal).
 		if ms.status != "up" {
-			// First check after startup only establishes a baseline — don't
-			// fire a "recovered" alert for every healthy service on restart.
-			baseline := ms.status == "pending"
+			// First check after startup (or after an unknown gap) only
+			// establishes a baseline — don't fire a "recovered" alert for
+			// every healthy service on restart.
+			baseline := ms.status == "pending" || ms.status == "unknown"
 			var downtime time.Duration
 			if !ms.downSince.IsZero() {
 				downtime = r.Time.Sub(ms.downSince)

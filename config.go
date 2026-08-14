@@ -31,6 +31,10 @@ type Config struct {
 	HistorySize int             `json:"history_size"`
 	Monitors    []MonitorConfig `json:"monitors"`
 	XMPP        XMPPConfig      `json:"xmpp"`
+	// StateFile is where per-monitor last-check timestamps are persisted so
+	// that after a restart a coverage gap can be reconstructed as "unknown".
+	// Empty disables persistence.
+	StateFile string `json:"state_file"`
 }
 
 type MonitorConfig struct {
@@ -94,6 +98,9 @@ func LoadConfig(path string) (*Config, error) {
 	}
 	if c.XMPP.FailureThreshold <= 0 {
 		c.XMPP.FailureThreshold = 3
+	}
+	if c.StateFile == "" {
+		c.StateFile = "downtime-state.json"
 	}
 	c.XMPP.Password = resolveSecret(c.XMPP.Password)
 

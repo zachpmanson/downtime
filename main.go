@@ -22,7 +22,10 @@ func main() {
 		log.Fatalf("config: %v", err)
 	}
 
-	store := NewStore(cfg.Monitors, cfg.HistorySize, cfg.XMPP.FailureThreshold)
+	st := NewStateFile(cfg.StateFile)
+
+	store := NewStore(cfg.Monitors, cfg.HistorySize, cfg.XMPP.FailureThreshold,
+		st.LastChecks(), time.Now())
 
 	var n notify.Notifier = notify.LogNotifier{}
 	if cfg.XMPP.Enabled {
@@ -39,7 +42,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	go runMonitors(ctx, cfg.Monitors, store, n)
+	go runMonitors(ctx, cfg.Monitors, store, n, st)
 
 	srv := &http.Server{
 		Addr:              cfg.Listen,

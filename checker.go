@@ -11,7 +11,7 @@ import (
 
 // runMonitors starts one goroutine per monitor and blocks until ctx is
 // cancelled. Each goroutine checks immediately, then on its interval.
-func runMonitors(ctx context.Context, cfgs []MonitorConfig, store *Store, n notify.Notifier) {
+func runMonitors(ctx context.Context, cfgs []MonitorConfig, store *Store, n notify.Notifier, st *StateFile) {
 	var wg sync.WaitGroup
 	for _, m := range cfgs {
 		if m.Disabled {
@@ -20,13 +20,13 @@ func runMonitors(ctx context.Context, cfgs []MonitorConfig, store *Store, n noti
 		wg.Add(1)
 		go func(m MonitorConfig) {
 			defer wg.Done()
-			runOne(ctx, m, store, n)
+			runOne(ctx, m, store, n, st)
 		}(m)
 	}
 	wg.Wait()
 }
 
-func runOne(ctx context.Context, m MonitorConfig, store *Store, n notify.Notifier) {
+func runOne(ctx context.Context, m MonitorConfig, store *Store, n notify.Notifier, st *StateFile) {
 	ticker := time.NewTicker(m.Interval.D())
 	defer ticker.Stop()
 
@@ -34,6 +34,10 @@ func runOne(ctx context.Context, m MonitorConfig, store *Store, n notify.Notifie
 		r := check(ctx, m)
 		if t := store.Record(m.Name, r); t != nil {
 			emit(n, t)
+		}
+		// Persist the heartbeat so a crash traces back to this moment.
+		if err := st.Set(m.Name, r.Time); err != nil {
+			log.Printf("state persist failed for %s: %v", m.Name, err)
 		}
 	}
 

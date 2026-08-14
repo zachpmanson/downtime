@@ -60,6 +60,7 @@ const STATUS_LABELS = {
   down: "Down",
   disabled: "Disabled",
   pending: "Pending",
+  unknown: "Unknown",
 };
 
 function card(m) {
@@ -78,6 +79,22 @@ function card(m) {
           <div class="status disabled"><span class="dot"></span>${label}</div>
         </div>
         <div class="meta"><span>not being checked</span></div>
+      </div>`;
+  }
+
+  // An unknown monitor is a coverage gap: it has no probe data, so skip the
+  // bars/uptime stats and show when it was last seen instead.
+  if (m.status === "unknown") {
+    return `
+      <div class="card unknown">
+        <div class="card-top">
+          <div>
+            <div class="name">${m.name}</div>
+            <div class="target">${m.target}</div>
+          </div>
+          <div class="status unknown"><span class="dot"></span>${label}</div>
+        </div>
+        <div class="meta"><span>no data since ${m.since ? timeAgo(m.since) : "—"} — monitor gap</span></div>
       </div>`;
   }
 
@@ -117,11 +134,11 @@ function sortMonitors(monitors, mode) {
   if (mode === "alpha") {
     arr.sort((a, b) => a.name.localeCompare(b.name));
   } else if (mode === "worst") {
-    // down (worst) → pending → up → disabled (not checked), then least-reliable first.
-    const rank = { down: 0, pending: 1, up: 2, disabled: 3 };
+    // down (worst) → unknown → pending → up → disabled, then least-reliable first.
+    const rank = { down: 0, unknown: 1, pending: 2, up: 3, disabled: 4 };
     arr.sort(
       (a, b) =>
-        (rank[a.status] ?? 3) - (rank[b.status] ?? 3) ||
+        (rank[a.status] ?? 4) - (rank[b.status] ?? 4) ||
         a.uptime_pct - b.uptime_pct ||
         a.name.localeCompare(b.name)
     );
