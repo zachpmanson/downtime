@@ -31,13 +31,20 @@ let
   rev = sourceInfo.shortRev or "dev";
   buildTime = toString (sourceInfo.lastModified or 0);
 
+  # Rendered settings with a sensible default state_file injected (unless the
+  # user set one): the heartbeat file must live under StateDirectory, which is
+  # writable even with ProtectSystem=strict.
+  settings' = if cfg.settings ? state_file
+    then cfg.settings
+    else cfg.settings // { state_file = cfg.stateFile; };
+
   # Prefer an out-of-store file (may contain secrets) when given; otherwise
   # render config.json from `settings`. Secrets should use "env:VAR" and come
   # from environmentFile, so the rendered file is safe to keep in the store.
   configFile =
     if cfg.configFile != null
     then cfg.configFile
-    else format.generate "downtime-config.json" cfg.settings;
+    else format.generate "downtime-config.json" settings';
 
   # Derive the listen port (":8080" or "0.0.0.0:8080" -> 8080) for the firewall.
   listenStr = cfg.settings.listen or ":8080";
@@ -80,6 +87,16 @@ in
       '';
     };
 
+    stateFile = lib.mkOption {
+      type = lib.types.str;
+      default = "/var/lib/downtime/downtime-state.json";
+      description = ''
+        Absolute path for the persisted per-monitor last-check heartbeat.
+        Overridden by settings.state_file when set. Must be writable by the
+        service (the default lives under StateDirectory).
+      '';
+    };
+
     environmentFile = lib.mkOption {
       type = lib.types.nullOr lib.types.path;
       default = null;
@@ -108,6 +125,9 @@ in
         ExecStart = "${lib.getExe cfg.package} -config ${configFile}";
         Restart = "on-failure";
         RestartSec = 5;
+
+        # Writable home for the persisted last-check heartbeat (state_file).
+        StateDirectory = "downtime";
 
         EnvironmentFile = lib.mkIf (cfg.environmentFile != null) cfg.environmentFile;
 
