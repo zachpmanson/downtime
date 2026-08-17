@@ -109,7 +109,7 @@ function card(m) {
       </div>
       <div class="bars">${bars(m.history)}</div>
       <div class="meta">
-        <span>${m.uptime_pct.toFixed(2)}% uptime</span>
+        <span>${m.uptime_pct.toFixed(2)}% uptime (all-time)</span>
         <span>${m.last_latency_ms ? m.last_latency_ms.toFixed(0) + "ms" : "—"}</span>
         <span>checked ${timeAgo(m.last_check)}</span>
       </div>

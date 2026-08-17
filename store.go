@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"sync"
 	"time"
 )
@@ -36,17 +37,20 @@ type Store struct {
 	order       []string // preserves config order for display
 	historySize int
 	threshold   int
+	db          *DB // optional SQLite persistence for all-time history
 }
 
 // NewStore builds the in-memory store. lastChecks holds the persisted
 // pre-restart last-check timestamps (nil/empty if none); any monitor whose
 // last check is older than gapFactor check-intervals is seeded as "unknown"
 // so the crossed window is shown as an honest gap rather than a guessed state.
-func NewStore(cfgs []MonitorConfig, historySize, threshold int, lastChecks map[string]time.Time, now time.Time) *Store {
+// db seeds the in-memory bar window from persisted history (may be nil).
+func NewStore(cfgs []MonitorConfig, historySize, threshold int, lastChecks map[string]time.Time, db *DB, now time.Time) *Store {
 	s := &Store{
 		monitors:    make(map[string]*monitorState),
 		historySize: historySize,
 		threshold:   threshold,
+		db:          db,
 	}
 	for _, c := range cfgs {
 		status := "pending"
@@ -69,19 +73,51 @@ func NewStore(cfgs []MonitorConfig, historySize, threshold int, lastChecks map[s
 		s.monitors[c.Name] = ms
 		s.order = append(s.order, c.Name)
 	}
+
+	// Re-seed the in-memory bar window from persisted history so the page and
+	// status survive restarts. Monitors flagged "unknown" (a real coverage gap
+	// when downtime itself was down) are deliberately left seeded-empty so the
+	// gap stays visible until a fresh check arrives.
+	if db != nil {
+		for _, name := range s.order {
+			ms := s.monitors[name]
+			if ms.cfg.Disabled || ms.status == "unknown" {
+				continue
+			}
+			rows, err := db.Recent(name, s.historySize)
+			if err != nil {
+				log.Printf("db: seed %s failed: %v", name, err)
+				continue
+			}
+			for _, r := range rows {
+				_ = s.applyLocked(name, r)
+			}
+		}
+	}
 	return s
 }
 
-// Record stores a result and returns a Transition if the check caused a
-// confirmed status flip (nil otherwise).
+// Record stores a result, persists it to the optional SQLite history, and
+// returns a Transition if the check caused a confirmed status flip (nil
+// otherwise).
 func (s *Store) Record(name string, r Result) *Transition {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	ms := s.monitors[name]
-	if ms == nil {
+	if s.monitors[name] == nil {
 		return nil
 	}
+	t := s.applyLocked(name, r)
+	if s.db != nil {
+		s.db.Append(name, r)
+	}
+	return t
+}
+
+// applyLocked applies a result to the in-memory state and derives any
+// transition. The caller must hold the lock. It is shared by live recording
+// and startup seeding (seeding never persists, so history can't duplicate).
+func (s *Store) applyLocked(name string, r Result) *Transition {
+	ms := s.monitors[name]
 
 	ms.lastCheck = r.Time
 	ms.history = append(ms.history, r)
@@ -196,8 +232,16 @@ func (s *Store) Snapshot(now time.Time) Snapshot {
 			})
 		}
 		if n := len(ms.history); n > 0 {
-			snap.UptimePct = float64(up) / float64(n) * 100
 			snap.LastLatencyMs = snap.History[n-1].LatencyMs
+		}
+		if s.db != nil {
+			// All-time uptime from the persisted history (survives restarts).
+			if st, err := s.db.AllTime(name); err == nil && st.Total > 0 {
+				snap.UptimePct = float64(st.Up) / float64(st.Total) * 100
+			}
+		} else if n := len(ms.history); n > 0 {
+			// No persistence: fall back to the in-memory window.
+			snap.UptimePct = float64(up) / float64(n) * 100
 		}
 		out.Monitors = append(out.Monitors, snap)
 	}

@@ -2,6 +2,7 @@
   "listen": ":8080",
   "history_size": 100,
   "state_file": "downtime-state.json",
+  "db_path": "downtime.db",
   "monitors": [
     {
       "name": "Example Website",

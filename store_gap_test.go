@@ -20,7 +20,7 @@ func TestNewStoreUnknownGap(t *testing.T) {
 		"gone":   now.Add(-3 * time.Minute),  // disabled → must stay disabled
 	}
 
-	st := NewStore(cfg, 100, 3, last, now)
+	st := NewStore(cfg, 100, 3, last, nil, now)
 	snap := st.Snapshot(now)
 	byName := map[string]MonitorSnapshot{}
 	for _, m := range snap.Monitors {
@@ -64,7 +64,7 @@ func TestUnknownDoesNotAlertOnFirstHealthyCheck(t *testing.T) {
 	cfg := []MonitorConfig{
 		{Name: "s", Type: "http", URL: "http://x", Interval: Duration(30 * time.Second), Timeout: Duration(time.Second)},
 	}
-	st := NewStore(cfg, 100, 3, map[string]time.Time{"s": now.Add(-5 * time.Minute)}, now)
+	st := NewStore(cfg, 100, 3, map[string]time.Time{"s": now.Add(-5 * time.Minute)}, nil, now)
 	if st.monitors["s"].status != "unknown" {
 		t.Fatalf("precondition: want unknown, got %q", st.monitors["s"].status)
 	}

@@ -20,6 +20,14 @@ cp config.example.json config.json   # edit it
 
 Then open http://localhost:8080.
 
+## All-time uptime
+
+By default every check is appended to a local SQLite database (config
+`db_path`, default `downtime.db`; `modernc.org/sqlite`, pure-Go / no cgo). The
+status page's **% uptime is all-time** — it counts across restarts instead of
+resetting each boot. Set `db_path` to an empty string to disable persistence
+and fall back to a windowed uptime over the last `history_size` checks.
+
 ## Nix
 
 - **Dev shell**: `nix develop` (go + gopls + gotools). With direnv, `direnv allow`

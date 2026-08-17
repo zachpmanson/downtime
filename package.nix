@@ -11,7 +11,7 @@ buildGoModule {
   # vendorHash is the hash of the vendored Go module deps. To refresh after a
   # go.mod change: set this to lib.fakeHash, run `nix build`, and paste the
   # "got: sha256-..." value it prints.
-  vendorHash = "sha256-sqeYJ140P0Ke6ZuqBMrzQoBhTNATCzP7MbIVhvenl/k=";
+  vendorHash = "sha256-On2LOamGllPe4KnFU0Vm8DJBvCNGrNTn9HnL/3Rcsgk=";
 
   # Trim the binary (the embedded web assets stay in via go:embed) and stamp in
   # the build metadata read by version.go.

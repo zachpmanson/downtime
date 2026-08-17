@@ -24,8 +24,15 @@ func main() {
 
 	st := NewStateFile(cfg.StateFile)
 
+	// Open the SQLite history DB (persistence optional; nil disables it).
+	db, err := OpenDB(cfg.DBPath)
+	if err != nil {
+		log.Fatalf("db: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
 	store := NewStore(cfg.Monitors, cfg.HistorySize, cfg.XMPP.FailureThreshold,
-		st.LastChecks(), time.Now())
+		st.LastChecks(), db, time.Now())
 
 	var n notify.Notifier = notify.LogNotifier{}
 	if cfg.XMPP.Enabled {

@@ -35,6 +35,9 @@ type Config struct {
 	// that after a restart a coverage gap can be reconstructed as "unknown".
 	// Empty disables persistence.
 	StateFile string `json:"state_file"`
+	// DBPath is where per-check history is persisted to SQLite, making uptime
+	// percentages all-time. Empty disables persistence (windowed uptime only).
+	DBPath string `json:"db_path"`
 }
 
 type MonitorConfig struct {
@@ -101,6 +104,9 @@ func LoadConfig(path string) (*Config, error) {
 	}
 	if c.StateFile == "" {
 		c.StateFile = "downtime-state.json"
+	}
+	if c.DBPath == "" {
+		c.DBPath = "downtime.db"
 	}
 	c.XMPP.Password = resolveSecret(c.XMPP.Password)
 

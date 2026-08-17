@@ -38,13 +38,19 @@ let
     then cfg.settings
     else cfg.settings // { state_file = cfg.stateFile; };
 
+  # Same for the SQLite history DB: default it under the state dir so the
+  # service can write it while hardened. The DB makes uptime all-time.
+  settings'' = if settings' ? db_path
+    then settings'
+    else settings' // { db_path = cfg.dbFile; };
+
   # Prefer an out-of-store file (may contain secrets) when given; otherwise
   # render config.json from `settings`. Secrets should use "env:VAR" and come
   # from environmentFile, so the rendered file is safe to keep in the store.
   configFile =
     if cfg.configFile != null
     then cfg.configFile
-    else format.generate "downtime-config.json" settings';
+    else format.generate "downtime-config.json" settings'';
 
   # Derive the listen port (":8080" or "0.0.0.0:8080" -> 8080) for the firewall.
   listenStr = cfg.settings.listen or ":8080";
@@ -93,6 +99,16 @@ in
       description = ''
         Absolute path for the persisted per-monitor last-check heartbeat.
         Overridden by settings.state_file when set. Must be writable by the
+        service (the default lives under StateDirectory).
+      '';
+    };
+
+    dbFile = lib.mkOption {
+      type = lib.types.str;
+      default = "/var/lib/downtime/downtime.db";
+      description = ''
+        Absolute path for the SQLite history database used for all-time uptime.
+        Overridden by settings.db_path when set. Must be writable by the
         service (the default lives under StateDirectory).
       '';
     };
