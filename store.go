@@ -178,6 +178,15 @@ type ResultSnapshot struct {
 	Err       string    `json:"err,omitempty"`
 }
 
+// DayBucket is one day's worth of a monitor's check history, used to render
+// each status bar as a much bigger window (a day) instead of a single probe.
+type DayBucket struct {
+	Day   string  `json:"day"` // "2006-01-02" in local time
+	Up    int64   `json:"up"`
+	Total int64   `json:"total"`
+	Pct   float64 `json:"pct"` // 0..100, computed from Total
+}
+
 type MonitorSnapshot struct {
 	Name          string           `json:"name"`
 	Type          string           `json:"type"`
@@ -188,6 +197,7 @@ type MonitorSnapshot struct {
 	LastCheck     *time.Time       `json:"last_check,omitempty"`
 	Since         *time.Time       `json:"since,omitempty"`
 	History       []ResultSnapshot `json:"history"`
+	Daily         []DayBucket       `json:"daily"`
 }
 
 type Snapshot struct {
@@ -234,6 +244,18 @@ func (s *Store) Snapshot(now time.Time) Snapshot {
 		if n := len(ms.history); n > 0 {
 			snap.LastLatencyMs = snap.History[n-1].LatencyMs
 		}
+		// Per-day bars: aggregate the trailing window from persisted history
+		// when available (survives restarts), else bucket the in-memory window.
+		// Disabled/unknown monitors show no bars, so skip them.
+		if ms.status != "disabled" && ms.status != "unknown" {
+			if s.db != nil {
+				if d, err := s.db.Daily(name, now); err == nil {
+					snap.Daily = d
+				}
+			} else {
+				snap.Daily = dailyFromResults(ms.history)
+			}
+		}
 		if s.db != nil {
 			// All-time uptime from the persisted history (survives restarts).
 			if st, err := s.db.AllTime(name); err == nil && st.Total > 0 {
@@ -244,6 +266,44 @@ func (s *Store) Snapshot(now time.Time) Snapshot {
 			snap.UptimePct = float64(up) / float64(n) * 100
 		}
 		out.Monitors = append(out.Monitors, snap)
+	}
+	return out
+}
+
+// dayStart truncates t to the start of its calendar day in the local zone.
+func dayStart(t time.Time) time.Time {
+	y, m, d := t.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, t.Location())
+}
+
+// dailyFromResults buckets an in-memory check window into per-local-day bars.
+// It's the fallback when SQLite persistence is disabled (no full-day history).
+func dailyFromResults(hist []Result) []DayBucket {
+	if len(hist) == 0 {
+		return nil
+	}
+	var order []string
+	agg := map[string]*DayBucket{}
+	for _, r := range hist {
+		day := r.Time.Format("2006-01-02")
+		b := agg[day]
+		if b == nil {
+			b = &DayBucket{Day: day}
+			agg[day] = b
+			order = append(order, day) // hist is ascending, so order stays sorted
+		}
+		b.Total++
+		if r.Up {
+			b.Up++
+		}
+	}
+	out := make([]DayBucket, 0, len(order))
+	for _, day := range order {
+		b := agg[day]
+		if b.Total > 0 {
+			b.Pct = float64(b.Up) / float64(b.Total) * 100
+		}
+		out = append(out, *b)
 	}
 	return out
 }

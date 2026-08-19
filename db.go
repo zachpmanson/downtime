@@ -119,6 +119,52 @@ func (d *DB) Recent(monitor string, n int) ([]Result, error) {
 	return out, nil
 }
 
+// DailyWindowDays is how many trailing days each monitor's daily bar strip
+// covers. 30 bars at one per day reads as a "much bigger window" than the old
+// ~40 per-check strip.
+const dailyWindowDays = 30
+
+// Daily aggregates a monitor's persisted checks into per-day buckets for the
+// trailing DailyWindowDays, oldest first. Days are bucketed in the process's
+// local timezone. Returns nil when persistence is disabled.
+func (d *DB) Daily(monitor string, now time.Time) ([]DayBucket, error) {
+	if d == nil || d.db == nil {
+		return nil, nil
+	}
+	cutoff := dayStart(now).AddDate(0, 0, -(dailyWindowDays - 1)).UnixNano()
+	rows, err := d.db.Query(
+		`SELECT date(ts / 1000000000, 'unixepoch', 'localtime') AS day,
+		        COUNT(*), COALESCE(SUM(up), 0)
+		 FROM checks
+		 WHERE monitor = ? AND ts >= ?
+		 GROUP BY day
+		 ORDER BY day ASC`,
+		monitor, cutoff,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]DayBucket, 0)
+	for rows.Next() {
+		var day string
+		var total, up int64
+		if err := rows.Scan(&day, &total, &up); err != nil {
+			return nil, err
+		}
+		pct := 0.0
+		if total > 0 {
+			pct = float64(up) / float64(total) * 100
+		}
+		out = append(out, DayBucket{Day: day, Up: up, Total: total, Pct: pct})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Append records one check result. Failures are logged and never propagate:
 // persistence must not disrupt live monitoring.
 func (d *DB) Append(monitor string, r Result) {
