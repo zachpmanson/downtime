@@ -91,3 +91,61 @@ func TestDBCreatesFile(t *testing.T) {
 		t.Fatalf("db file not created: %v", err)
 	}
 }
+
+func TestDBDaily(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "daily.db")
+	db, err := OpenDB(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	// Build 3 distinct days using explicit local dates so bucketing is stable
+	// regardless of when the test runs.
+	days := []time.Time{
+		time.Date(2025, 1, 10, 23, 30, 0, 0, time.Local),
+		time.Date(2025, 1, 11, 0, 30, 0, 0, time.Local),
+		time.Date(2025, 1, 11, 6, 0, 0, 0, time.Local),
+		time.Date(2025, 1, 12, 12, 0, 0, 0, time.Local),
+	}
+	// day1: 1 up, day2: 2 checks 1 up, day3: 1 down
+	ups := []bool{true, true, false, false}
+	for i, dt := range days {
+		db.Append("web", Result{Time: dt, Up: ups[i], Latency: time.Millisecond})
+	}
+
+	daily, err := db.Daily("web", time.Date(2025, 1, 12, 13, 0, 0, 0, time.Local))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(daily) != 3 {
+		t.Fatalf("Daily len = %d, want 3 (got %+v)", len(daily), daily)
+	}
+	if daily[0].Day != "2025-01-10" || daily[0].Total != 1 || daily[0].Up != 1 || daily[0].Pct != 100 {
+		t.Errorf("day1 = %+v", daily[0])
+	}
+	if daily[1].Day != "2025-01-11" || daily[1].Total != 2 || daily[1].Up != 1 || daily[1].Pct != 50 {
+		t.Errorf("day2 = %+v", daily[1])
+	}
+	if daily[2].Day != "2025-01-12" || daily[2].Total != 1 || daily[2].Up != 0 || daily[2].Pct != 0 {
+		t.Errorf("day3 = %+v", daily[2])
+	}
+}
+
+func TestDailyFromResultsFallback(t *testing.T) {
+	hist := []Result{
+		{Time: time.Date(2025, 1, 10, 23, 0, 0, 0, time.Local), Up: true},
+		{Time: time.Date(2025, 1, 11, 0, 30, 0, 0, time.Local), Up: false},
+		{Time: time.Date(2025, 1, 11, 6, 0, 0, 0, time.Local), Up: true},
+	}
+	daily := dailyFromResults(hist)
+	if len(daily) != 2 {
+		t.Fatalf("len = %d, want 2", len(daily))
+	}
+	if daily[0].Day != "2025-01-10" || daily[0].Pct != 100 {
+		t.Errorf("day1 = %+v", daily[0])
+	}
+	if daily[1].Day != "2025-01-11" || daily[1].Total != 2 || daily[1].Pct != 50 {
+		t.Errorf("day2 = %+v", daily[1])
+	}
+}

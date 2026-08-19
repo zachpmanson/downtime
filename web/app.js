@@ -13,9 +13,22 @@ function timeAgo(iso) {
   return timeAgoMs(new Date(iso).getTime());
 }
 
-function bars(history) {
-  // Show the most recent ~40 checks as a kuma-style strip.
-  const recent = history.slice(-40);
+function bars(m) {
+  // Prefer per-day bars: each bar is a whole day (a "much bigger window").
+  if (Array.isArray(m.daily) && m.daily.length) {
+    const recent = m.daily.slice(-40);
+    return recent
+      .map((b) => {
+        const pct = b.pct ?? 100;
+        const cls = pct <= 0 ? "down" : pct < 100 ? "warn" : "up";
+        const title = `${b.day} — ${b.up}/${b.total} checks (${pct.toFixed(1)}% up)`;
+        return `<div class="bar ${cls}" title="${title.replace(/"/g, "&quot;")}"></div>`;
+      })
+      .join("");
+  }
+
+  // Fallback (no per-day history): the most recent ~40 checks as a strip.
+  const recent = (m.history || []).slice(-40);
   return recent
     .map((r) => {
       const cls = r.up ? "up" : "down";
@@ -107,7 +120,7 @@ function card(m) {
         </div>
         <div class="status ${m.status}"><span class="dot"></span>${label}</div>
       </div>
-      <div class="bars">${bars(m.history)}</div>
+      <div class="bars">${bars(m)}</div>
       <div class="meta">
         <span>${m.uptime_pct.toFixed(2)}% uptime (all-time)</span>
         <span>${m.last_latency_ms ? m.last_latency_ms.toFixed(0) + "ms" : "—"}</span>

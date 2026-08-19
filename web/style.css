@@ -6,6 +6,7 @@
   --muted: #8b93a3;
   --up: #34d399;
   --down: #f87171;
+  --warn: #fbbf24;
   --pending: #fbbf24;
   --disabled: #6b7280;
   --unknown: #a78bfa;
@@ -133,6 +134,7 @@ h1 { font-size: 1.4rem; margin: 0; }
 }
 .bar.up { background: var(--up); }
 .bar.down { background: var(--down); }
+.bar.warn { background: var(--warn); }
 
 .meta {
   display: flex;
