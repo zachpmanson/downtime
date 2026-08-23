@@ -13,6 +13,15 @@ function timeAgo(iso) {
   return timeAgoMs(new Date(iso).getTime());
 }
 
+// Plain elapsed duration (no "ago"), for "up for X" / "down for X" spans.
+function durationMs(ms) {
+  const s = Math.max(0, ms / 1000);
+  if (s < 60) return `${Math.round(s)}s`;
+  if (s < 3600) return `${Math.round(s / 60)}m`;
+  if (s < 86400) return `${Math.round(s / 3600)}h`;
+  return `${Math.round(s / 86400)}d`;
+}
+
 function bars(m) {
   // Prefer per-day bars: each bar is a whole day (a "much bigger window").
   if (Array.isArray(m.daily) && m.daily.length) {
@@ -122,7 +131,8 @@ function card(m) {
       </div>
       <div class="bars">${bars(m)}</div>
       <div class="meta">
-        <span>${m.uptime_pct.toFixed(2)}% uptime (all-time)</span>
+        <span>${m.uptime_pct.toFixed(2)}% uptime</span>
+        ${m.since ? `<span>${m.status} for ${durationMs(Date.now() - new Date(m.since).getTime())}</span>` : ""}
         <span>${m.last_latency_ms ? m.last_latency_ms.toFixed(0) + "ms" : "—"}</span>
         <span>checked ${timeAgo(m.last_check)}</span>
       </div>
