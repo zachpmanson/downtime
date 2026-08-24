@@ -145,6 +145,11 @@ func (s *Store) applyLocked(name string, r Result) *Transition {
 			}
 			return &Transition{Monitor: name, Up: true, Downtime: downtime, Time: r.Time}
 		}
+		// A success while already "up" must still clear any open-ended
+		// downSince left by a sub-threshold blip. Otherwise that stale blip
+		// contaminates the start time of a later genuine outage and inflates
+		// the reported downtime (e.g. "recovered after 14h50m" for a 1m blip).
+		ms.downSince = time.Time{}
 		return nil
 	}
 
