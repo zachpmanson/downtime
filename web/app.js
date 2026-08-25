@@ -134,7 +134,7 @@ function card(m) {
         <span>${m.uptime_pct.toFixed(2)}% uptime</span>
         ${m.since ? `<span>${m.status} for ${durationMs(Date.now() - new Date(m.since).getTime())}</span>` : ""}
         <span>${m.last_latency_ms ? m.last_latency_ms.toFixed(0) + "ms" : "—"}</span>
-        <span>checked ${timeAgo(m.last_check)}</span>
+        <span>${timeAgo(m.last_check)}</span>
       </div>
     </div>`;
 }
