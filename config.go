@@ -49,9 +49,18 @@ type MonitorConfig struct {
 	Timeout      Duration `json:"timeout"`
 	ExpectStatus []int    `json:"expect_status"`
 	Keyword      string   `json:"keyword"`
+	// BasicAuth sets credentials for http monitors that sit behind HTTP Basic
+	// auth (e.g. a Caddy `basicauth` gate). Password may reference an
+	// environment variable via "env:VAR".
+	BasicAuth *BasicAuthConfig `json:"basic_auth,omitempty"`
 	// Disabled marks a temporarily-decommissioned service: it's shown greyed
 	// out on the status page but never probed and never alerts.
 	Disabled bool `json:"disabled"`
+}
+
+type BasicAuthConfig struct {
+	User     string `json:"user"`
+	Password string `json:"password"` // may be "env:VAR"
 }
 
 // Endpoint returns the human-facing target string for display / API.
@@ -109,6 +118,14 @@ func LoadConfig(path string) (*Config, error) {
 		c.DBPath = "downtime.db"
 	}
 	c.XMPP.Password = resolveSecret(c.XMPP.Password)
+
+	// Resolve any env:VAR references in basic-auth passwords. Secrets stay out
+	// of the config file (and thus the Nix store) via the environmentFile.
+	for i := range c.Monitors {
+		if m := &c.Monitors[i]; m.BasicAuth != nil {
+			m.BasicAuth.Password = resolveSecret(m.BasicAuth.Password)
+		}
+	}
 
 	if err := c.validate(); err != nil {
 		return nil, err
