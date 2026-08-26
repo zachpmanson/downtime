@@ -21,6 +21,14 @@
       "keyword": "ok"
     },
     {
+      "name": "Protected Dashboard",
+      "type": "http",
+      "url": "https://dash.internal:8443",
+      "interval": "30s",
+      "timeout": "5s",
+      "basic_auth": { "user": "zach", "password": "env:CADDY_AUTH_PASSWORD" }
+    },
+    {
       "name": "Postgres",
       "type": "tcp",
       "target": "db.internal:5432",

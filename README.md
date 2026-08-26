@@ -102,6 +102,7 @@ alert) on the first healthy check and reverts to normal tracking.
 | type   | field    | checks |
 |--------|----------|--------|
 | `http` | `url`    | GET; status in `expect_status` (default any 2xx/3xx); optional `keyword` must appear in the body |
+| `http` | `basic_auth` | optional `{ "user", "password" }` credentials for endpoints behind HTTP Basic auth (e.g. Caddy's `basicauth`); password may be `"env:VAR"` |
 | `tcp`  | `target` | `host:port` accepts a connection |
 
 Add `"disabled": true` to any monitor to mark it as temporarily decommissioned:

@@ -48,6 +48,9 @@ func checkHTTP(ctx context.Context, m MonitorConfig) error {
 	if err != nil {
 		return err
 	}
+	if m.BasicAuth != nil && m.BasicAuth.User != "" {
+		req.SetBasicAuth(m.BasicAuth.User, m.BasicAuth.Password)
+	}
 	req.Header.Set("User-Agent", "downtime/1.0")
 
 	client := &http.Client{
