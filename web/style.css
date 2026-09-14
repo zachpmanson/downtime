@@ -28,6 +28,30 @@ body {
   max-width: 1200px;
   margin-inline: auto;
 }
+/* Page navigation: one pill per configured page (Overview = /, others on
+   subpaths). Same pill treatment as .controls. */
+.pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  font-size: .9rem;
+  color: var(--muted);
+}
+.pages a, .pages .active {
+  padding: .3rem .7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--muted);
+}
+.pages a:hover { color: var(--text); }
+.pages .active {
+  color: var(--text);
+  background: var(--card);
+  border-color: var(--muted);
+}
 .controls {
   display: flex;
   flex-wrap: wrap;

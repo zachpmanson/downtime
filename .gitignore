@@ -4,3 +4,4 @@ config.json
 # nix / direnv
 /result
 .direnv/
+downtime-state.json

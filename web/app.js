@@ -1,5 +1,17 @@
 const POLL_MS = 10000;
 
+// The current page name: location.pathname "/external/" -> "external",
+// "/" -> "index". The UI polls /api/status/<page> (index = root).
+function currentPage() {
+  const p = location.pathname.replace(/\/+$/, "");
+  return p === "" ? "index" : p.replace(/^\//, "");
+}
+
+function apiUrl() {
+  const page = currentPage();
+  return page === "index" ? "/api/status" : `/api/status/${encodeURIComponent(page)}`;
+}
+
 function timeAgoMs(ms) {
   const s = Math.max(0, (Date.now() - ms) / 1000);
   if (s < 60) return `${Math.round(s)}s ago`;
@@ -187,6 +199,20 @@ let lastData = null;
 let lastFetchMs = null; // client time of the last successful poll
 let lastError = false;
 
+// Page nav: link to every configured page, highlighting the current one.
+// The single-file UI renders any page; only the API endpoint differs.
+function renderPages(pages) {
+  const el = document.getElementById("pages");
+  const cur = currentPage();
+  const items = (pages || []).map((p) => {
+    const href = p === "index" ? "/" : `/${p}`;
+    const cls = p === cur ? ' class="active"' : "";
+    return `<a href="${href}"${cls}>${p === "index" ? "Overview" : p}</a>`;
+  });
+  if (el) el.innerHTML = items.join("");
+}
+
+
 // Update just the "updated Xs ago" stamp. Driven by a 1s ticker so it counts
 // up between polls and keeps growing (signalling staleness) if polling stalls.
 function updateStamp() {
@@ -217,12 +243,13 @@ function render(data) {
   }
   updateStamp();
   renderVersion(data.version);
+  renderPages(data.pages);
   renderControls();
 }
 
 async function refresh() {
   try {
-    const res = await fetch("api/status", { cache: "no-store" });
+    const res = await fetch(apiUrl(), { cache: "no-store" });
     lastData = await res.json();
     lastFetchMs = Date.now();
     lastError = false;

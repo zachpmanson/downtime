@@ -38,6 +38,10 @@ type Store struct {
 	historySize int
 	threshold   int
 	db          *DB // optional SQLite persistence for all-time history
+	// pages is the ordered page list ("index" always first) and pageMonitors
+	// maps each page name to its monitor names in config order.
+	pages        []string
+	pageMonitors map[string][]string
 }
 
 // NewStore builds the in-memory store. lastChecks holds the persisted
@@ -51,6 +55,8 @@ func NewStore(cfgs []MonitorConfig, historySize, threshold int, lastChecks map[s
 		historySize: historySize,
 		threshold:   threshold,
 		db:          db,
+		pages:       []string{"index"}, // the default page always exists
+		pageMonitors: make(map[string][]string),
 	}
 	for _, c := range cfgs {
 		status := "pending"
@@ -72,6 +78,19 @@ func NewStore(cfgs []MonitorConfig, historySize, threshold int, lastChecks map[s
 		}
 		s.monitors[c.Name] = ms
 		s.order = append(s.order, c.Name)
+
+		// Build the page index in first-appearance order. "index" (the
+		// default page) is always first — it's seeded above — so only named
+		// pages are appended here.
+		p := c.PageName()
+		if p != "index" && !s.HasPage(p) {
+			s.pages = append(s.pages, p)
+		}
+		if members := s.pageMonitors[p]; members == nil {
+			s.pageMonitors[p] = []string{c.Name}
+		} else {
+			s.pageMonitors[p] = append(members, c.Name)
+		}
 	}
 
 	// Re-seed the in-memory bar window from persisted history so the page and
@@ -95,6 +114,22 @@ func NewStore(cfgs []MonitorConfig, historySize, threshold int, lastChecks map[s
 		}
 	}
 	return s
+}
+
+// HasPage reports whether the named page exists ("index" always exists for
+// any non-empty monitor set, since unset pages default to it).
+func (s *Store) HasPage(p string) bool {
+	for _, q := range s.pages {
+		if q == p {
+			return true
+		}
+	}
+	return false
+}
+
+// Pages returns the ordered page list ("index" first) for the UI nav.
+func (s *Store) Pages() []string {
+	return s.pages
 }
 
 // Record stores a result, persists it to the optional SQLite history, and
@@ -213,14 +248,18 @@ type Snapshot struct {
 	Monitors  []MonitorSnapshot `json:"monitors"`
 }
 
-// Snapshot returns a read-only view suitable for JSON encoding.
-func (s *Store) Snapshot(now time.Time) Snapshot {
+// Snapshot returns a read-only view suitable for JSON encoding, restricted to
+// the monitors assigned to the given page ("index" = the root page).
+func (s *Store) Snapshot(now time.Time, page string) Snapshot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	out := Snapshot{Generated: now, Monitors: make([]MonitorSnapshot, 0, len(s.order))}
 	for _, name := range s.order {
 		ms := s.monitors[name]
+		if ms.cfg.PageName() != page {
+			continue
+		}
 		snap := MonitorSnapshot{
 			Name:    ms.cfg.Name,
 			Type:    ms.cfg.Type,

@@ -26,7 +26,7 @@ func TestStoreSeedsAndAllTimeUptimeFromDB(t *testing.T) {
 	// Simulate a restart: fresh store with no in-memory data, same DB.
 	st := NewStore(cfg, 100, 3, map[string]time.Time{}, db, now.Add(2*time.Hour))
 
-	snap := st.Snapshot(now.Add(2 * time.Hour))
+	snap := st.Snapshot(now.Add(2 * time.Hour), "index")
 	if len(snap.Monitors) != 1 {
 		t.Fatalf("expected 1 monitor, got %d", len(snap.Monitors))
 	}
@@ -45,7 +45,7 @@ func TestStoreUptimeWindowedWithoutDB(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		st.Record("a", Result{Time: time.Now().Add(time.Duration(i) * time.Second), Up: i != 1})
 	}
-	snap := st.Snapshot(time.Now())
+	snap := st.Snapshot(time.Now(), "index")
 	// 3 up of 4 -> 75%, computed from the in-memory window (no DB).
 	if snap.Monitors[0].UptimePct != 75 {
 		t.Fatalf("windowed uptime = %v, want 75", snap.Monitors[0].UptimePct)

@@ -56,6 +56,10 @@ type MonitorConfig struct {
 	// Disabled marks a temporarily-decommissioned service: it's shown greyed
 	// out on the status page but never probed and never alerts.
 	Disabled bool `json:"disabled"`
+	// Page groups this monitor onto its own page: "index" (the default when
+	// unset) is served at /, other pages live on /<page> subpaths. Useful for
+	// splitting third-party monitors from your own.
+	Page string `json:"page"`
 	// Notify toggles XMPP down/recovery alerts for just this monitor; the
 	// status page and history behaviour are unaffected. Unset = notify (the
 	// default). Useful for canaries expected to be down.
@@ -76,6 +80,15 @@ func (m MonitorConfig) Endpoint() string {
 		return m.URL
 	}
 	return m.Target
+}
+
+// PageName returns the effective page for this monitor: "index" unless the
+// monitor sets its own.
+func (m MonitorConfig) PageName() string {
+	if m.Page == "" {
+		return "index"
+	}
+	return m.Page
 }
 
 // ShouldNotify reports whether this monitor may fire XMPP down/recovery
@@ -135,6 +148,19 @@ func LoadConfig(path string) (*Config, error) {
 	}
 	if c.XMPP.FailureThreshold <= 0 {
 		c.XMPP.FailureThreshold = 3
+	}
+
+	// Validate page names early: each becomes a URL path segment ("index" is
+	// the root default), so they must be single segments free of path/query
+	// metacharacters and must not shadow static assets (no dots).
+	for _, m := range c.Monitors {
+		if m.Page == "" {
+			continue
+		}
+		if len(m.Page) > 64 || strings.ContainsAny(m.Page, "/\\.%?# &+") {
+			return nil, fmt.Errorf("invalid page %q for monitor %q: use a short name of letters, digits, '-' or '_'",
+				m.Page, m.Name)
+		}
 	}
 	if c.StateFile == "" {
 		c.StateFile = "downtime-state.json"
