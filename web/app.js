@@ -77,6 +77,20 @@ function renderVersion(v) {
   el.innerHTML = parts.join(sep);
 }
 
+// Escape for HTML text and double-quoted attribute values alike.
+function esc(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// The target is truncated by CSS; keep the full URL reachable in a tooltip.
+function target(m) {
+  return `<div class="target" title="${esc(m.target)}">${esc(m.target)}</div>`;
+}
+
 const STATUS_LABELS = {
   up: "Operational",
   down: "Down",
@@ -96,7 +110,7 @@ function card(m) {
         <div class="card-top">
           <div>
             <div class="name">${m.name}</div>
-            <div class="target">${m.target}</div>
+            ${target(m)}
           </div>
           <div class="status disabled"><span class="dot"></span>${label}</div>
         </div>
@@ -112,7 +126,7 @@ function card(m) {
         <div class="card-top">
           <div>
             <div class="name">${m.name}</div>
-            <div class="target">${m.target}</div>
+            ${target(m)}
           </div>
           <div class="status unknown"><span class="dot"></span>${label}</div>
         </div>
@@ -125,7 +139,7 @@ function card(m) {
       <div class="card-top">
         <div>
           <div class="name">${m.name}</div>
-          <div class="target">${m.target}</div>
+          ${target(m)}
         </div>
         <div class="status ${m.status}"><span class="dot"></span>${label}</div>
       </div>

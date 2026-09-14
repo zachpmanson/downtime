@@ -93,7 +93,17 @@ h1 { font-size: 1.4rem; margin: 0; }
   gap: 1rem;
 }
 .name { font-weight: 600; }
-.target { color: var(--muted); font-size: .8rem; word-break: break-all; }
+/* Long targets are truncated to one line (ellipsis + full URL in the title)
+   rather than wrapping and stretching the card. The flex parent needs
+   min-width: 0 for the ellipsis to kick in inside a grid cell. */
+.card-top > div:first-child { min-width: 0; }
+.target {
+  color: var(--muted);
+  font-size: .8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .status {
   font-size: .8rem;
   font-weight: 600;
