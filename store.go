@@ -140,7 +140,7 @@ func (s *Store) applyLocked(name string, r Result) *Transition {
 			ms.status = "up"
 			ms.since = r.Time
 			ms.downSince = time.Time{}
-			if baseline {
+			if baseline || !ms.cfg.ShouldNotify() {
 				return nil
 			}
 			return &Transition{Monitor: name, Up: true, Downtime: downtime, Time: r.Time}
@@ -158,15 +158,18 @@ func (s *Store) applyLocked(name string, r Result) *Transition {
 	if ms.downSince.IsZero() {
 		ms.downSince = r.Time
 	}
-	// Only flip to "down" (and notify) once the threshold is crossed, and only
-	// on the transition itself — not on every subsequent failure.
-	if ms.status != "down" && ms.consecutiveFail >= s.threshold {
+	// Only flip to "down" (and notify) once the monitor's threshold is crossed
+	// (its own override, else the global one), and only on the transition
+	// itself — not on every subsequent failure.
+	if ms.status != "down" && ms.consecutiveFail >= ms.cfg.Threshold(s.threshold) {
 		// If it was already down when we first looked (startup baseline),
-		// record it silently instead of alerting on restart.
+		// record it silently instead of alerting on restart. Likewise for
+		// monitors opted out of alerts (notify: false) — the page still
+		// flips, but no event is emitted.
 		baseline := ms.status == "pending"
 		ms.status = "down"
 		ms.since = r.Time
-		if baseline {
+		if baseline || !ms.cfg.ShouldNotify() {
 			return nil
 		}
 		return &Transition{Monitor: name, Up: false, Err: r.Err, Time: r.Time}

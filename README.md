@@ -108,6 +108,21 @@ alert) on the first healthy check and reverts to normal tracking.
 Add `"disabled": true` to any monitor to mark it as temporarily decommissioned:
 it's shown greyed out on the status page but never probed and never alerts.
 
+Per-monitor knobs:
+
+- `"notify": false` — suppress XMPP down/recovery alerts for just this
+  monitor. The status page and history behaviour are unchanged, so an
+  expected-down canary (e.g. a feed that's 404 most of the day) flips on the
+  page without paging you. Omit or `true` = alert.
+- `"failure_threshold": N` — override the global `xmpp.failure_threshold` for
+  just this monitor, e.g. 1 to flip (and alert) on the first failed check.
+
+```json
+{ "name": "YouTube (RSS)", "type": "http",
+  "url": "https://www.youtube.com/feeds/videos.xml?playlist_id=…",
+  "interval": "30m", "notify": false, "failure_threshold": 1 }
+```
+
 ## Config
 
 ```json

@@ -56,6 +56,13 @@ type MonitorConfig struct {
 	// Disabled marks a temporarily-decommissioned service: it's shown greyed
 	// out on the status page but never probed and never alerts.
 	Disabled bool `json:"disabled"`
+	// Notify toggles XMPP down/recovery alerts for just this monitor; the
+	// status page and history behaviour are unaffected. Unset = notify (the
+	// default). Useful for canaries expected to be down.
+	Notify *bool `json:"notify,omitempty"`
+	// FailureThreshold overrides the global xmpp.failure_threshold for just
+	// this monitor; unset (or <= 0) = use the global value.
+	FailureThreshold *int `json:"failure_threshold,omitempty"`
 }
 
 type BasicAuthConfig struct {
@@ -69,6 +76,24 @@ func (m MonitorConfig) Endpoint() string {
 		return m.URL
 	}
 	return m.Target
+}
+
+// ShouldNotify reports whether this monitor may fire XMPP down/recovery
+// alerts. Unset keeps the default behaviour (alert on flips).
+func (m MonitorConfig) ShouldNotify() bool {
+	if m.Notify == nil {
+		return true
+	}
+	return *m.Notify
+}
+
+// Threshold returns this monitor's effective down-flip threshold: its own
+// override when set, else the global value.
+func (m MonitorConfig) Threshold(global int) int {
+	if m.FailureThreshold != nil && *m.FailureThreshold > 0 {
+		return *m.FailureThreshold
+	}
+	return global
 }
 
 type XMPPConfig struct {
