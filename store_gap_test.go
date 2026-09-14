@@ -21,7 +21,7 @@ func TestNewStoreUnknownGap(t *testing.T) {
 	}
 
 	st := NewStore(cfg, 100, 3, last, nil, now)
-	snap := st.Snapshot(now)
+	snap := st.Snapshot(now, "index")
 	byName := map[string]MonitorSnapshot{}
 	for _, m := range snap.Monitors {
 		byName[m.Name] = m

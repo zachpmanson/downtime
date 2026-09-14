@@ -110,6 +110,11 @@ it's shown greyed out on the status page but never probed and never alerts.
 
 Per-monitor knobs:
 
+- `"page": "name"` — group this monitor onto its own page. Unset (or
+  `"index"`) means the root page at `/`; named pages are served on `/name`
+  subpaths and listed in the nav. Handy for keeping third-party monitors
+  (feeds, SaaS boards) off your own status page. Names are single URL path
+  segments: letters, digits, `-`, `_`, at most 64 chars.
 - `"notify": false` — suppress XMPP down/recovery alerts for just this
   monitor. The status page and history behaviour are unchanged, so an
   expected-down canary (e.g. a feed that's 404 most of the day) flips on the
@@ -157,8 +162,12 @@ Per-monitor knobs:
 
 ## HTTP endpoints
 
-- `GET /` — the embedded status page (polls the API every 10s).
-- `GET /api/status` — JSON snapshot of every monitor and its recent history.
+- `GET /` — the embedded status page (polls the API every 10s). Pages other
+  than the default live on subpaths, e.g. `GET /external`.
+- `GET /api/status` — JSON snapshot of the `index` page's monitors, plus a
+  `"pages"` nav list.
+- `GET /api/status/<page>` — JSON snapshot of one named page; 404 if the
+  page doesn't exist.
 
 ## Extending notifications
 
