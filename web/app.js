@@ -70,17 +70,18 @@ function renderVersion(v) {
   const parts = [
     `powered by <a href="${repo}" target="_blank" rel="noopener"><strong>downtime</strong></a>`,
   ];
-  if (v.commit && v.commit !== "dev") {
+  // Build info, matching penultimate-guitar's footer: "2026-09-14 @ d99fcd2",
+  // ISO date first, then the short rev, the whole thing linked to the commit.
+  const sha = v.commit && v.commit !== "dev" ? v.commit : "";
+  let label = v.built_unix
+    ? new Date(v.built_unix * 1000).toISOString().slice(0, 10)
+    : "";
+  if (sha) label = label ? `${label} @ ${sha}` : sha;
+  if (label) {
     parts.push(
-      `<a href="${repo}/commit/${v.commit}" target="_blank" rel="noopener" class="commit">${v.commit}</a>`
-    );
-  }
-  if (v.built_unix) {
-    const d = new Date(v.built_unix * 1000);
-    parts.push(
-      `deployed ${d.toLocaleDateString(undefined, {
-        day: "numeric", month: "short", year: "numeric",
-      })}`
+      sha
+        ? `<a href="${repo}/commit/${sha}" target="_blank" rel="noopener" class="commit">${label}</a>`
+        : label
     );
   }
 
