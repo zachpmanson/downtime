@@ -5,3 +5,6 @@ config.json
 /result
 .direnv/
 downtime-state.json
+
+# local database
+downtime.db
