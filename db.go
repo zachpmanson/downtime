@@ -40,7 +40,13 @@ func OpenDB(path string) (*DB, error) {
 	)`); err != nil {
 		return nil, err
 	}
-	if _, err := handle.Exec(`CREATE INDEX IF NOT EXISTS idx_checks_monitor_ts ON checks(monitor, ts)`); err != nil {
+	// Status snapshots aggregate count and up across full history and daily
+	// windows. Including up makes these reads covering-index scans. This also
+	// replaces the older (monitor, ts) index, which the new index subsumes.
+	if _, err := handle.Exec(`DROP INDEX IF EXISTS idx_checks_monitor_ts`); err != nil {
+		return nil, err
+	}
+	if _, err := handle.Exec(`CREATE INDEX IF NOT EXISTS idx_checks_monitor_ts_up ON checks(monitor, ts, up)`); err != nil {
 		return nil, err
 	}
 	return &DB{db: handle}, nil

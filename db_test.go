@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -76,6 +77,36 @@ func TestOpenDBNilOnEmptyPath(t *testing.T) {
 	if db != nil {
 		_ = db.Close()
 		t.Fatal("OpenDB('') should return nil (persistence disabled)")
+	}
+}
+
+func TestAllTimeUsesCoveringIndex(t *testing.T) {
+	db, err := OpenDB(filepath.Join(t.TempDir(), "history.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	var plan string
+	rows, err := db.db.Query(`EXPLAIN QUERY PLAN
+		SELECT COUNT(*), COALESCE(SUM(up), 0) FROM checks WHERE monitor = ?`, "web")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, parent, notUsed int
+		var detail string
+		if err := rows.Scan(&id, &parent, &notUsed, &detail); err != nil {
+			t.Fatal(err)
+		}
+		plan += detail
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(plan, "COVERING INDEX idx_checks_monitor_ts_up") {
+		t.Fatalf("all-time query plan = %q, want covering index", plan)
 	}
 }
 
