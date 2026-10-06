@@ -287,6 +287,17 @@ document.addEventListener("click", (e) => {
 window.addEventListener("popstate", () => render(lastData));
 
 renderControls();
-refresh();
+const initialStatus = document.getElementById("initial-status");
+if (initialStatus) {
+  try {
+    lastData = JSON.parse(initialStatus.textContent);
+    lastFetchMs = Date.now();
+    render(lastData);
+  } catch (e) {
+    refresh();
+  }
+} else {
+  refresh();
+}
 setInterval(refresh, POLL_MS);
 setInterval(updateStamp, 1000); // tick the "updated Xs ago" stamp every second
