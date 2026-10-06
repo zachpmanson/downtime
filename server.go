@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"io/fs"
@@ -23,8 +24,8 @@ type versionInfo struct {
 // footer. The watches fields are for the JS polling loop.
 type statusResponse struct {
 	Snapshot
-	Pages   []string     `json:"pages"`
-	Version versionInfo  `json:"version"`
+	Pages   []string    `json:"pages"`
+	Version versionInfo `json:"version"`
 }
 
 func newServer(store *Store) http.Handler {
@@ -67,7 +68,16 @@ func newServer(store *Store) http.Handler {
 			b, rerr := fs.ReadFile(sub, "index.html")
 			if rerr == nil {
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
-				_ , _ = w.Write(b)
+				w.Header().Set("Cache-Control", "no-store")
+				data, merr := json.Marshal(statusForPage(store, page))
+				if merr != nil {
+					http.Error(w, "could not render status", http.StatusInternalServerError)
+					return
+				}
+				initial := append([]byte(`<script id="initial-status" type="application/json">`), data...)
+				initial = append(initial, []byte(`</script>`)...)
+				b = bytes.Replace(b, []byte("<!-- INITIAL_STATUS -->"), initial, 1)
+				_, _ = w.Write(b)
 				return
 			}
 		}
@@ -83,13 +93,17 @@ func newServer(store *Store) http.Handler {
 func serveStatus(w http.ResponseWriter, store *Store, page string) {
 	if !store.HasPage(page) {
 		w.WriteHeader(http.StatusNotFound)
-		_ , _ = w.Write([]byte("{\"error\":\"no such page\"}\n"))
+		_, _ = w.Write([]byte("{\"error\":\"no such page\"}\n"))
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
-	_ = enc.Encode(statusResponse{
+	_ = enc.Encode(statusForPage(store, page))
+}
+
+func statusForPage(store *Store, page string) statusResponse {
+	return statusResponse{
 		Snapshot: store.Snapshot(time.Now(), page),
 		Pages:    store.Pages(),
 		Version: versionInfo{
@@ -97,5 +111,5 @@ func serveStatus(w http.ResponseWriter, store *Store, page string) {
 			Repo:      repoURL,
 			BuiltUnix: buildUnixInt(),
 		},
-	})
+	}
 }
