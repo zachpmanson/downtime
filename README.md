@@ -1,8 +1,8 @@
 # downtime
 
 A tiny uptime monitor in Go. Single static binary, JSON config, an embedded
-status page, and optional XMPP alerts on state changes. No database, no Node,
-no browser stack — the whole thing is ~10MB and idles at a few MB of RAM.
+status page, SQLite history, and optional XMPP alerts on state changes. No
+external database server, no Node, no browser stack — the whole thing is ~10MB and idles at a few MB of RAM.
 
 ## Build
 
@@ -27,6 +27,67 @@ By default every check is appended to a local SQLite database (config
 status page's **% uptime is all-time** — it counts across restarts instead of
 resetting each boot. Set `db_path` to an empty string to disable persistence
 and fall back to a windowed uptime over the last `history_size` checks.
+
+## Private failed-HTTP diagnostic log
+
+Every failed HTTP check is recorded in the **`http_failures` table of `db_path`**,
+independently of XMPP being enabled, `notify: false`, startup baselines, failure
+thresholds or repeated-down suppression. This includes unexpected statuses
+(such as 404/500), keyword mismatches and request/response handling errors.
+Each row associates `monitor`, `ts` (Unix nanoseconds, check start), `status`,
+`err` and `headers` (JSON object of name → **all values**, preserving arrays).
+Ordinary values are JSON strings; a value containing non-UTF-8 HTTP bytes is
+represented as `{"base64":"..."}` in its array slot, preserving its bytes exactly.
+A failed check with no response has `status = 0`, `headers = 'null'`; headers
+are not invented. HTTP transport/protocol error text is reduced to safe categories,
+because even parser errors without a response can quote secret header values.
+Successful HTTP checks and TCP checks do not add rows.
+Headers are captured before status/error/body handling. Gzip is still negotiated
+and decoded for keyword checks, but automatic header stripping is disabled.
+Existing partial-body keyword success/failure semantics are unchanged.
+
+**These are sensitive logs.** No header is redacted: `Set-Cookie`, authentication
+challenges, redirect locations and custom headers can contain credentials or
+personal data. Full headers go **only to the local database**: not the status
+page, JSON API, in-memory history, XMPP alerts or stdout/system journal. There
+is no diagnostic download endpoint. Header values are JSON-escaped and SQL-bound,
+not interpolated into log lines. Runtime write/retention failures produce only a
+fixed generic journal warning and do not change monitoring/alert outcomes.
+Database initialization/privacy failures stop startup rather than quietly exposing
+or disabling capture. When DB persistence is disabled by an embedding caller,
+failed HTTP diagnostics are unavailable and a fixed warning is logged.
+
+The application creates/tightens the DB and existing `-wal`/`-shm` sidecars to
+**0600**, refuses symlinks/non-regular paths, and requires a trusted private parent
+directory. The NixOS module sets **StateDirectoryMode=0700**, **UMask=0077**;
+DynamicUser state on Naboo is also behind `/var/lib/private`. Only the service
+identity and administrators should read it. For a manual launch, use a private
+working directory (`mkdir -m 700 ...`) and `umask 077`. Custom `db_path` directories,
+backup permissions, copies and any log forwarding are the operator's responsibility.
+Never publish a raw history DB/export now that it also contains sensitive headers.
+An administrator can inspect diagnostics offline with a parameterized SQLite query,
+for example `SELECT monitor, ts, status, headers FROM http_failures ORDER BY id DESC LIMIT 10;`.
+Do not paste the output into public issues, chat, or shared artifacts.
+
+**Logical retention:** at most **7 days**, **10,000 newest rows**, and **64 MiB**
+of combined UTF-8 header/error/monitor payloads globally, whichever evicts first.
+Eviction deletes whole old records, never silently truncates individual values.
+Cleanup runs on startup, after every HTTP failure, and at most once per minute
+on other live checks (so age expiry can lag a minute). With no checks running,
+expiry resumes on the next check/startup. Ordinary `checks` uptime history is
+never pruned by this policy. SQLite free pages/WAL and external backups can retain
+deleted bytes: this is **not forensic/cryptographic erasure** or a hard filesystem
+size bound. Keep all copies private and apply a separate backup retention policy.
+Disk/I/O failures can prevent capture; their generic warnings must be monitored.
+
+Capture covers the final initial headers exposed by Go's `net/http`, including
+all parsed repeated values, even when `Client.Do` subsequently discards the response
+(e.g. a malformed redirect). Separately parsed `Transfer-Encoding` and declared
+`Trailer` names are included in their normalized form. Go canonicalizes names;
+original wire casing/order/grouping, actual HTTP trailer values, interim responses,
+and headers discarded by the HTTP parser (including conflicting Content-Length)
+are not raw-wire captured. Existing transport response-header size limits still
+apply. Previously discarded historical headers cannot be reconstructed.
 
 ## Nix
 

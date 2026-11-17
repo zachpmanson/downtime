@@ -144,6 +144,10 @@ in
 
         # Writable home for the persisted last-check heartbeat (state_file).
         StateDirectory = "downtime";
+        # The DB contains full failed-response headers, potentially cookies or
+        # other secrets. Keep state and SQLite sidecars private to the service.
+        StateDirectoryMode = "0700";
+        UMask = "0077";
 
         EnvironmentFile = lib.mkIf (cfg.environmentFile != null) cfg.environmentFile;
 

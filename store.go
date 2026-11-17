@@ -51,11 +51,11 @@ type Store struct {
 // db seeds the in-memory bar window from persisted history (may be nil).
 func NewStore(cfgs []MonitorConfig, historySize, threshold int, lastChecks map[string]time.Time, db *DB, now time.Time) *Store {
 	s := &Store{
-		monitors:    make(map[string]*monitorState),
-		historySize: historySize,
-		threshold:   threshold,
-		db:          db,
-		pages:       []string{"index"}, // the default page always exists
+		monitors:     make(map[string]*monitorState),
+		historySize:  historySize,
+		threshold:    threshold,
+		db:           db,
+		pages:        []string{"index"}, // the default page always exists
 		pageMonitors: make(map[string][]string),
 	}
 	for _, c := range cfgs {
@@ -141,6 +141,9 @@ func (s *Store) Record(name string, r Result) *Transition {
 	if s.monitors[name] == nil {
 		return nil
 	}
+	s.db.recordHTTPFailure(name, r)
+	// Do not retain sensitive headers in the ring buffer or startup history.
+	r.HTTP = nil
 	t := s.applyLocked(name, r)
 	if s.db != nil {
 		s.db.Append(name, r)
@@ -240,7 +243,7 @@ type MonitorSnapshot struct {
 	LastCheck     *time.Time       `json:"last_check,omitempty"`
 	Since         *time.Time       `json:"since,omitempty"`
 	History       []ResultSnapshot `json:"history"`
-	Daily         []DayBucket       `json:"daily"`
+	Daily         []DayBucket      `json:"daily"`
 }
 
 type Snapshot struct {

@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"log"
+	"sync"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -14,7 +15,9 @@ import (
 // It uses modernc.org/sqlite (a pure-Go, cgo-free driver) so the binary stays
 // a single static build and the Nix package needs no native sqlite.
 type DB struct {
-	db *sql.DB
+	db                  *sql.DB
+	diagnosticMu        sync.Mutex
+	lastDiagnosticPrune time.Time
 }
 
 // OpenDB opens (creating if needed) the SQLite history database. A nil return
@@ -22,6 +25,9 @@ type DB struct {
 func OpenDB(path string) (*DB, error) {
 	if path == "" {
 		return nil, nil
+	}
+	if err := privateDBFiles(path); err != nil {
+		return nil, err
 	}
 	handle, err := sql.Open("sqlite", path)
 	if err != nil {
@@ -49,7 +55,12 @@ func OpenDB(path string) (*DB, error) {
 	if _, err := handle.Exec(`CREATE INDEX IF NOT EXISTS idx_checks_monitor_ts_up ON checks(monitor, ts, up)`); err != nil {
 		return nil, err
 	}
-	return &DB{db: handle}, nil
+	d := &DB{db: handle}
+	if err := d.initHTTPFailures(); err != nil {
+		_ = handle.Close()
+		return nil, err
+	}
+	return d, nil
 }
 
 // Close closes the underlying database handle.
