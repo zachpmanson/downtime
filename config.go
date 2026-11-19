@@ -64,6 +64,9 @@ type MonitorConfig struct {
 	// status page and history behaviour are unaffected. Unset = notify (the
 	// default). Useful for canaries expected to be down.
 	Notify *bool `json:"notify,omitempty"`
+	// LogResponseHeaders writes redacted HTTP response diagnostics to the
+	// service log for every check, independently of notification settings.
+	LogResponseHeaders bool `json:"log_response_headers,omitempty"`
 	// FailureThreshold overrides the global xmpp.failure_threshold for just
 	// this monitor; unset (or <= 0) = use the global value.
 	FailureThreshold *int `json:"failure_threshold,omitempty"`

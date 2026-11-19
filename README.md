@@ -48,10 +48,11 @@ Existing partial-body keyword success/failure semantics are unchanged.
 
 **These are sensitive logs.** No header is redacted: `Set-Cookie`, authentication
 challenges, redirect locations and custom headers can contain credentials or
-personal data. Full headers go **only to the local database**: not the status
-page, JSON API, in-memory history, XMPP alerts or stdout/system journal. There
-is no diagnostic download endpoint. Header values are JSON-escaped and SQL-bound,
-not interpolated into log lines. Runtime write/retention failures produce only a
+personal data. Unredacted failure diagnostics go **only to the local database**:
+not the status page, JSON API, in-memory history, XMPP alerts or system journal.
+The separate opt-in `log_response_headers` journal output redacts sensitive fields.
+There is no diagnostic download endpoint. In the DB, header values are JSON-escaped
+and SQL-bound. Runtime write/retention failures produce only a
 fixed generic journal warning and do not change monitoring/alert outcomes.
 Database initialization/privacy failures stop startup rather than quietly exposing
 or disabling capture. When DB persistence is disabled by an embedding caller,
@@ -180,6 +181,16 @@ Per-monitor knobs:
   monitor. The status page and history behaviour are unchanged, so an
   expected-down canary (e.g. a feed that's 404 most of the day) flips on the
   page without paging you. Omit or `true` = alert.
+- `"log_response_headers": true` — for HTTP monitors, write `[HTTP RESPONSE]`
+  lines to the service log for every normal check, even with `notify: false`.
+  Each line contains the monitor name, status code, and parsed response headers
+  as JSON, including repeated values. No response is `status=0 headers=null`.
+  Large records use `[HTTP RESPONSE CHUNK]` lines: match `monitor` and `check`,
+  concatenate `headers_base64` in `part` order, then decode as base64.
+  Cookie, authentication, credential-like and known URL-bearing header values
+  are replaced by `[redacted]` while keeping the header names. Enable only for
+  trusted endpoints: custom headers may contain sensitive data under unexpected
+  names. No change to polling, alerts, the public API, or private DB retention.
 - `"failure_threshold": N` — override the global `xmpp.failure_threshold` for
   just this monitor, e.g. 1 to flip (and alert) on the first failed check.
 
