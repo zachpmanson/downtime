@@ -32,6 +32,9 @@ func runOne(ctx context.Context, m MonitorConfig, store *Store, n notify.Notifie
 
 	do := func() {
 		r := check(ctx, m)
+		if m.LogResponseHeaders {
+			logHTTPResponse(m.Name, r.Time, r.HTTP)
+		}
 		if t := store.Record(m.Name, r); t != nil {
 			emit(n, t)
 		}

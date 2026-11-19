@@ -109,7 +109,7 @@ func encodeHTTPHeaders(headers http.Header) ([]byte, error) {
 }
 
 // recordHTTPFailure is deliberately separate from transitions/notifications.
-// Values go only to the private DB, never the journal, public API or notifier.
+// Unredacted diagnostics go only to the private DB, not the journal, public API or notifier.
 // Call on every live check so old sensitive data expires even after recovery.
 func (d *DB) recordHTTPFailure(monitor string, r Result) {
 	if d == nil || d.db == nil {
